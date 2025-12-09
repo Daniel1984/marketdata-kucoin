@@ -1,13 +1,13 @@
 const std = @import("std");
 const kucoin = @import("./kucoin.zig");
-const stream = @import("./stream.zig");
+const relay = @import("marketdata_relay_pub");
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var publisher = try stream.init(allocator, .{});
+    var publisher = try relay.Self.init(allocator, .{});
     defer publisher.deinit();
     try publisher.connect();
 

@@ -3,7 +3,7 @@ const ws = @import("websocket");
 const zimq = @import("zimq");
 const request = @import("./request.zig");
 const types = @import("./types.zig");
-const str = @import("./stream.zig");
+const relay = @import("marketdata_relay_pub");
 const json = std.json;
 const crypto = std.crypto;
 
@@ -16,10 +16,10 @@ ping_interval: u64,
 ping_timeout: u64,
 mutex: std.Thread.Mutex,
 client: ?ws.Client,
-stream: str.Self,
+stream: relay.Self,
 current_topic: ?[]u8,
 
-pub fn init(allocator: std.mem.Allocator, stream: str.Self) !Self {
+pub fn init(allocator: std.mem.Allocator, stream: relay.Self) !Self {
     return Self{
         .allocator = allocator,
         .token = null,

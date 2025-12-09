@@ -69,11 +69,11 @@ pub fn build(b: *std.Build) void {
     });
     exe.root_module.addImport("websocket", websocket.module("websocket"));
 
-    const zimq = b.dependency("zimq", .{
+    const marketdata_relay_pub = b.dependency("marketdata_relay_pub", .{
         .target = target,
         .optimize = optimize,
     });
-    exe.root_module.addImport("zimq", zimq.module("zimq"));
+    exe.root_module.addImport("marketdata_relay_pub", marketdata_relay_pub.module("marketdata_relay_pub"));
 
     // This declares intent for the executable to be installed into the
     // install prefix when running `zig build` (i.e. when executing the default

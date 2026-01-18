@@ -17,7 +17,7 @@ ping_timeout: u64,
 mutex: std.Thread.Mutex,
 client: ?ws.Client,
 stream: relay.Self,
-current_topic: ?[]u8,
+subscription_topics: ?[]const []const u8,
 
 pub fn init(allocator: std.mem.Allocator, stream: relay.Self) !Self {
     return Self{
@@ -29,7 +29,7 @@ pub fn init(allocator: std.mem.Allocator, stream: relay.Self) !Self {
         .mutex = std.Thread.Mutex{},
         .client = null,
         .stream = stream,
-        .current_topic = null,
+        .subscription_topics = null,
     };
 }
 
@@ -41,10 +41,6 @@ pub fn deinit(self: *Self) void {
     if (self.endpoint) |endpoint| {
         self.allocator.free(endpoint);
         self.endpoint = null;
-    }
-    if (self.current_topic) |topic| {
-        self.allocator.free(topic);
-        self.current_topic = null;
     }
     self.deinitClient();
 }
@@ -137,33 +133,30 @@ pub fn connectWebSocket(self: *Self) !void {
     std.log.info("socket connection established!", .{});
 }
 
-pub fn subscribeChannel(self: *Self, topic: []const u8) !void {
-    // Store current topic for reconnection
-    if (self.current_topic) |old_topic| {
-        self.allocator.free(old_topic);
-    }
-    self.current_topic = try self.allocator.dupe(u8, topic);
+pub fn subscribe(self: *Self, topics: []const []const u8) !void {
+    self.subscription_topics = topics;
+    try self.subscribeChannel();
+}
 
-    // Generate random ID
-    var random_bytes: [8]u8 = undefined;
-    crypto.random.bytes(&random_bytes);
-    var id: u64 = 0;
-    for (random_bytes) |byte| {
-        id = (id << 8) | byte;
+pub fn subscribeChannel(self: *Self) !void {
+    if (self.subscription_topics == null) {
+        return error.NoSubscriptionTopics;
     }
 
-    const subscribe_msg = types.SubscribeMessage{
-        .id = id,
-        .type = "subscribe",
-        .topic = topic,
-        .response = true,
-    };
+    for (self.subscription_topics.?, 0..) |topic, i| {
+        const subscribe_msg = types.SubscribeMessage{
+            .id = i,
+            .type = "subscribe",
+            .topic = topic,
+            .response = true,
+        };
 
-    const subscribe_json = try std.fmt.allocPrint(self.allocator, "{f}", .{std.json.fmt(subscribe_msg, .{})});
-    defer self.allocator.free(subscribe_json);
+        const subscribe_json = try std.fmt.allocPrint(self.allocator, "{f}", .{std.json.fmt(subscribe_msg, .{})});
+        defer self.allocator.free(subscribe_json);
 
-    std.log.info("subscription payload: {s}", .{subscribe_json});
-    try self.client.?.write(subscribe_json);
+        std.log.info("subscription payload: {s}", .{subscribe_json});
+        try self.client.?.write(subscribe_json);
+    }
 }
 
 fn reconnect(self: *Self) !void {
@@ -181,50 +174,17 @@ fn reconnect(self: *Self) !void {
             backoff_ms *= 2;
         }
 
-        // Get new token and endpoint
-        self.getSocketConnectionDetails() catch |token_err| {
-            std.log.warn("failed to get socket connection details on attempt {}: {}", .{ retry_count + 1, token_err });
+        self.connectWebSocket() catch |err| {
+            std.log.err("failed to connect websocket: {}", .{err});
             retry_count += 1;
             continue;
         };
 
-        // Establish websocket connection
-        self.connectWebSocket() catch |reconnect_err| {
-            std.log.warn("reconnection attempt {} failed: {}", .{ retry_count + 1, reconnect_err });
+        self.subscribeChannel() catch |err| {
+            std.log.err("failed to subscribe channel: {}", .{err});
             retry_count += 1;
             continue;
         };
-
-        // Re-subscribe if we have a topic
-        if (self.current_topic) |topic| {
-            // Wait a moment for connection to stabilize
-            std.Thread.sleep(500 * std.time.ns_per_ms);
-
-            // Generate random ID
-            var random_bytes: [8]u8 = undefined;
-            crypto.random.bytes(&random_bytes);
-            var id: u64 = 0;
-            for (random_bytes) |byte| {
-                id = (id << 8) | byte;
-            }
-
-            const subscribe_msg = types.SubscribeMessage{
-                .id = id,
-                .type = "subscribe",
-                .topic = topic,
-                .response = true,
-            };
-
-            const subscribe_json = try std.fmt.allocPrint(self.allocator, "{f}", .{std.json.fmt(subscribe_msg, .{})});
-            defer self.allocator.free(subscribe_json);
-
-            std.log.info("re-subscribing to: {s}", .{topic});
-            self.client.?.write(subscribe_json) catch |sub_err| {
-                std.log.warn("re-subscription failed: {}", .{sub_err});
-                retry_count += 1;
-                continue;
-            };
-        }
 
         std.log.info("reconnected successfully after {} attempts", .{retry_count + 1});
         return;

@@ -13,7 +13,7 @@ pub const KuCoinTokenResponse = struct {
 };
 
 pub const SubscribeMessage = struct {
-    id: u64,
+    id: usize,
     type: []const u8,
     topic: []const u8,
     response: bool,

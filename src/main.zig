@@ -4,7 +4,9 @@ const relay = @import("marketdata_relay_pub");
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
+    defer if (gpa.deinit() == .leak) {
+        std.debug.panic("leaks detected", .{});
+    };
     const allocator = gpa.allocator();
 
     var publisher = try relay.Self.init(allocator, .{});
@@ -16,7 +18,14 @@ pub fn main() !void {
 
     try kc.getSocketConnectionDetails();
     try kc.connectWebSocket();
-    try kc.subscribeChannel("/spotMarket/level2Depth5:BTC-USDT");
+
+    const topics = [_][]const u8{
+        "/spotMarket/level2Depth50:BTC-USDT",
+        "/spotMarket/level2Depth50:ETH-USDT",
+        "/spotMarket/level2Depth50:SOL-USDT",
+        "/spotMarket/level2Depth50:XRP-USDT",
+    };
+    try kc.subscribe(topics[0..]);
 
     kc.consume() catch |err| {
         std.log.err("Consumer failed with error: {}", .{err});

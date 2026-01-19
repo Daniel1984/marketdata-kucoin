@@ -26,11 +26,8 @@ pub fn main() !void {
         "/spotMarket/level2Depth50:XRP-USDT",
     };
     try kc.subscribe(topics[0..]);
+    try kc.consume();
 
-    kc.consume() catch |err| {
-        std.log.err("Consumer failed with error: {}", .{err});
-        return err;
-    };
-
-    std.log.info("WebSocket connection closed", .{});
+    std.log.info("consumer stopped...", .{});
+    std.process.exit(0);
 }

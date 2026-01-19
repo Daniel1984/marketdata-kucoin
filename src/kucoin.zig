@@ -135,10 +135,10 @@ pub fn connectWebSocket(self: *Self) !void {
 
 pub fn subscribe(self: *Self, topics: []const []const u8) !void {
     self.subscription_topics = topics;
-    try self.subscribeChannel();
+    try self.subscribeTopics();
 }
 
-pub fn subscribeChannel(self: *Self) !void {
+pub fn subscribeTopics(self: *Self) !void {
     if (self.subscription_topics == null) {
         return error.NoSubscriptionTopics;
     }
@@ -180,7 +180,7 @@ fn reconnect(self: *Self) !void {
             continue;
         };
 
-        self.subscribeChannel() catch |err| {
+        self.subscribeTopics() catch |err| {
             std.log.err("failed to subscribe channel: {}", .{err});
             retry_count += 1;
             continue;

@@ -260,7 +260,7 @@ pub fn consume(self: *Self) !void {
 
                                 if (std.mem.eql(u8, type_str, "message")) {
                                     // Transform Kucoin response data to match common format
-                                    const transformed_data = self.transformOrderbookData(msg.data) catch |err| {
+                                    const transformed_data = self.transformOrderbookData(parsed.value) catch |err| {
                                         std.log.warn("failed to transform orderbook data: {}", .{err});
                                         continue;
                                     };
@@ -305,13 +305,7 @@ pub fn consume(self: *Self) !void {
     std.log.info("WebSocket connection closed", .{});
 }
 
-fn transformOrderbookData(self: *Self, original_data: []const u8) ![]u8 {
-    const parsed = std.json.parseFromSlice(std.json.Value, self.allocator, original_data, .{}) catch |err| {
-        std.log.warn("Failed to parse Bybit message for transformation: {}", .{err});
-        return err;
-    };
-    defer parsed.deinit();
-
+fn transformOrderbookData(self: *Self, parsed: std.json.Value) ![]u8 {
     // Clone the original structure
     var root_obj = std.json.ObjectMap.init(self.allocator);
     defer root_obj.deinit();
@@ -322,11 +316,11 @@ fn transformOrderbookData(self: *Self, original_data: []const u8) ![]u8 {
     try root_obj.put("src", std.json.Value{ .string = "kucoin" });
     try root_obj.put("type", std.json.Value{ .string = "orderbook" });
 
-    if (parsed.value.object.get("timestamp")) |ts| {
+    if (parsed.object.get("timestamp")) |ts| {
         try root_obj.put("ts", ts);
     }
 
-    if (parsed.value.object.get("topic")) |topic| {
+    if (parsed.object.get("topic")) |topic| {
         if (topic == .string) {
             const topic_str = topic.string;
             if (std.mem.indexOf(u8, topic_str, ":")) |colon_index| {
@@ -338,7 +332,7 @@ fn transformOrderbookData(self: *Self, original_data: []const u8) ![]u8 {
         }
     }
 
-    if (parsed.value.object.get("data")) |data_value| {
+    if (parsed.object.get("data")) |data_value| {
         var data_obj = std.json.ObjectMap.init(self.allocator);
         defer data_obj.deinit();
 

@@ -6,7 +6,7 @@
     //
     // It is redundant to include "zig" in this name because it is already
     // within the Zig package namespace.
-    .name = .marketdata,
+    .name = .marketdata_kucoin,
     // This is a [Semantic Version](https://semver.org/).
     // In a future version of Zig it will be used for package deduplication.
     .version = "0.0.0",
@@ -22,10 +22,10 @@
     // original project's identity. Thus it is recommended to leave the comment
     // on the following line intact, so that it shows up in code reviews that
     // modify the field.
-    .fingerprint = 0x3393083aeffb9b03, // Changing this has security and trust implications.
+    .fingerprint = 0xfba5ecb9209ae95b, // Changing this has security and trust implications.
     // Tracks the earliest Zig version that the package considers to be a
     // supported use case.
-    .minimum_zig_version = "0.15.1",
+    .minimum_zig_version = "0.15.2",
     // This field is optional.
     // Each dependency must either provide a `url` and `hash`, or a `path`.
     // `zig build --fetch` can be used to fetch all dependencies of a package, recursively.
@@ -33,8 +33,8 @@
     // internet connectivity.
     .dependencies = .{
         .websocket = .{
-            .url = "git+https://github.com/karlseguin/websocket.zig.git?ref=master#59aaa71e64a669aa90016f8a342ceeee6381b4a6",
-            .hash = "websocket-0.1.0-ZPISdYluAwBl2ckLPQ_q5_1IPEmNmaJ9vU1V0ap1-_dD",
+            .url = "git+https://github.com/karlseguin/websocket.zig.git?ref=master#91ca9c501066144fa95a52237da110812e9aa145",
+            .hash = "websocket-0.1.0-ZPISdRNzAwAGszh62EpRtoQxu8wb1MSMVI6Ow0o2dmyJ",
         },
         .marketdata_relay_pub = .{
             .url = "git+https://github.com/Daniel1984/marketdata-relay-pub?ref=v0.1.0#60887e51f76882e5acff9373636c36a04da0798e",

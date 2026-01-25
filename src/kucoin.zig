@@ -17,7 +17,7 @@ ping_timeout: u64,
 mutex: std.Thread.Mutex,
 client: ?ws.Client,
 stream: relay.Self,
-subscription_topics: ?[]const []const u8,
+subscription_topics: ?std.StaticStringMap([]const u8) = null,
 
 pub fn init(allocator: std.mem.Allocator, stream: relay.Self) !Self {
     return Self{
@@ -105,12 +105,6 @@ pub fn connectWebSocket(self: *Self) !void {
     const port: u16 = uri.port orelse if (std.mem.eql(u8, uri.scheme, "wss")) 443 else 80;
     const is_tls = std.mem.eql(u8, uri.scheme, "wss");
 
-    // Clean up existing client if it exists
-    if (self.client) |*client| {
-        client.deinit();
-        self.client = null;
-    }
-
     self.client = try ws.Client.init(self.allocator, .{
         .port = port,
         .host = host,
@@ -133,7 +127,7 @@ pub fn connectWebSocket(self: *Self) !void {
     std.log.info("socket connection established!", .{});
 }
 
-pub fn subscribe(self: *Self, topics: []const []const u8) !void {
+pub fn subscribe(self: *Self, topics: std.StaticStringMap([]const u8)) !void {
     self.subscription_topics = topics;
     try self.subscribeTopics();
 }
@@ -143,7 +137,10 @@ pub fn subscribeTopics(self: *Self) !void {
         return error.NoSubscriptionTopics;
     }
 
-    for (self.subscription_topics.?, 0..) |topic, i| {
+    const keys = self.subscription_topics.?.keys();
+    for (keys, 0..) |topic, i| {
+        std.Thread.sleep(500 * std.time.ns_per_ms);
+
         const subscribe_msg = types.SubscribeMessage{
             .id = i,
             .type = "subscribe",
@@ -154,8 +151,10 @@ pub fn subscribeTopics(self: *Self) !void {
         const subscribe_json = try std.fmt.allocPrint(self.allocator, "{f}", .{std.json.fmt(subscribe_msg, .{})});
         defer self.allocator.free(subscribe_json);
 
+        self.mutex.lock();
         std.log.info("subscription payload: {s}", .{subscribe_json});
         try self.client.?.write(subscribe_json);
+        self.mutex.unlock();
     }
 }
 
@@ -310,9 +309,6 @@ fn transformOrderbookData(self: *Self, parsed: std.json.Value) ![]u8 {
     var root_obj = std.json.ObjectMap.init(self.allocator);
     defer root_obj.deinit();
 
-    var pair_string: ?[]u8 = null;
-    defer if (pair_string) |p| self.allocator.free(p);
-
     try root_obj.put("src", std.json.Value{ .string = "kucoin" });
     try root_obj.put("type", std.json.Value{ .string = "orderbook" });
 
@@ -323,12 +319,8 @@ fn transformOrderbookData(self: *Self, parsed: std.json.Value) ![]u8 {
     if (parsed.object.get("topic")) |topic| {
         if (topic == .string) {
             const topic_str = topic.string;
-            if (std.mem.indexOf(u8, topic_str, ":")) |colon_index| {
-                const pair_with_dash = topic_str[colon_index + 1 ..];
-                const pair = try std.mem.replaceOwned(u8, self.allocator, pair_with_dash, "-", "");
-                pair_string = pair;
-                try root_obj.put("pair", std.json.Value{ .string = pair });
-            }
+            const pair = if (self.subscription_topics) |map| map.get(topic_str) orelse topic_str else topic_str;
+            try root_obj.put("pair", std.json.Value{ .string = pair });
         }
     }
 

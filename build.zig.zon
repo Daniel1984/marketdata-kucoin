@@ -40,6 +40,10 @@
             .url = "git+https://github.com/Daniel1984/marketdata-relay-pub?ref=v0.1.0#60887e51f76882e5acff9373636c36a04da0798e",
             .hash = "marketdata_relay_pub-0.0.0-G7cQmtgWAACaUZ26lNOlm_9VhDSyelIcCQtVn1jKLy6l",
         },
+        .marketdata_ws_client = .{
+            .url = "git+https://github.com/Daniel1984/marketdata-wss-client?ref=v0.1.12#57eb53d385adfbffb12b75e41f03f99f052c95bc",
+            .hash = "marketdata_ws_client-0.0.0-2ef9RqQcAAArZyjBigYSyDVy7VEprPDBOiTJ1JnIUQBn",
+        },
     },
     .paths = .{
         "build.zig",

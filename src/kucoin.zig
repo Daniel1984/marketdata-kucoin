@@ -325,9 +325,6 @@ fn transformOrderbookData(self: *Self, parsed: std.json.Value) ![]u8 {
     }
 
     if (parsed.object.get("data")) |data_value| {
-        var data_obj = std.json.ObjectMap.init(self.allocator);
-        defer data_obj.deinit();
-
         if (data_value.object.get("bids")) |b| {
             try root_obj.put("bids", b);
         }

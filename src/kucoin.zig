@@ -152,9 +152,9 @@ pub fn subscribeTopics(self: *Self) !void {
         defer self.allocator.free(subscribe_json);
 
         self.mutex.lock();
+        defer self.mutex.unlock();
         std.log.info("subscription payload: {s}", .{subscribe_json});
         try self.client.?.write(subscribe_json);
-        self.mutex.unlock();
     }
 }
 
@@ -312,10 +312,6 @@ fn transformOrderbookData(self: *Self, parsed: std.json.Value) ![]u8 {
     try root_obj.put("src", std.json.Value{ .string = "kucoin" });
     try root_obj.put("type", std.json.Value{ .string = "orderbook" });
 
-    if (parsed.object.get("timestamp")) |ts| {
-        try root_obj.put("ts", ts);
-    }
-
     if (parsed.object.get("topic")) |topic| {
         if (topic == .string) {
             const topic_str = topic.string;
@@ -325,6 +321,10 @@ fn transformOrderbookData(self: *Self, parsed: std.json.Value) ![]u8 {
     }
 
     if (parsed.object.get("data")) |data_value| {
+        if (data_value.object.get("timestamp")) |ts| {
+            try root_obj.put("ts", ts);
+        }
+
         if (data_value.object.get("bids")) |b| {
             try root_obj.put("bids", b);
         }

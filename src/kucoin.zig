@@ -173,6 +173,12 @@ fn reconnect(self: *Self) !void {
             backoff_ms *= 2;
         }
 
+        self.getSocketConnectionDetails() catch |err| {
+            std.log.err("failed to get socket connection details: {}", .{err});
+            retry_count += 1;
+            continue;
+        };
+
         self.connectWebSocket() catch |err| {
             std.log.err("failed to connect websocket: {}", .{err});
             retry_count += 1;
@@ -189,7 +195,7 @@ fn reconnect(self: *Self) !void {
         return;
     } else {
         std.log.err("failed to reconnect after {} attempts", .{max_retries});
-        return error.ReconnectionFailed;
+        std.process.exit(1);
     }
 }
 

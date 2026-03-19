@@ -1,5 +1,6 @@
 const std = @import("std");
 const kucoin = @import("./kucoin.zig");
+const Env = @import("./env.zig");
 const relay = @import("marketdata_relay_pub");
 
 const symbol_map = std.StaticStringMap([]const u8).initComptime(.{
@@ -27,7 +28,11 @@ pub fn main() !void {
     };
     const allocator = gpa.allocator();
 
-    var publisher = try relay.Self.init(allocator, .{});
+    var env = Env.init(allocator);
+    const zmq_pub_url = env.getString("ZMQ_PUB_URL", "tcp://127.0.0.1:5555");
+    defer allocator.free(zmq_pub_url);
+
+    var publisher = try relay.Self.init(allocator, .{ .stream_url = zmq_pub_url });
     defer publisher.deinit();
     try publisher.connect();
 

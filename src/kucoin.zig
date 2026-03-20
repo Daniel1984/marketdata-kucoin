@@ -242,8 +242,6 @@ pub fn consume(self: *Self) !void {
 
             switch (msg.type) {
                 .text => {
-                    // std.log.info("Received: {s}", .{msg.data});
-
                     const parsed = std.json.parseFromSlice(std.json.Value, self.allocator, msg.data, .{}) catch |err| {
                         std.log.warn("Failed to parse message as JSON: {}", .{err});
                         continue;
@@ -271,7 +269,7 @@ pub fn consume(self: *Self) !void {
                                     };
                                     defer self.allocator.free(transformed_data);
 
-                                    // std.debug.print("::: transformed_data :> {s}\n", .{transformed_data});
+                                    std.debug.print("::: transformed_data :> {s}\n", .{transformed_data});
                                     self.stream.publishMessage(transformed_data) catch |err| {
                                         std.log.warn("failed publishing msg: {}", .{err});
                                     };

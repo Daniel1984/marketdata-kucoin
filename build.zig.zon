@@ -37,8 +37,8 @@
             .hash = "websocket-0.1.0-ZPISdRNzAwAGszh62EpRtoQxu8wb1MSMVI6Ow0o2dmyJ",
         },
         .marketdata_relay_pub = .{
-            .url = "git+https://github.com/Daniel1984/marketdata-relay-pub?ref=v0.1.7#5115a55eb6039bc21081eda1afca3cec6db9239a",
-            .hash = "marketdata_relay_pub-0.0.0-G7cQmgsaAADq7xM6W3XmGqBCGFykrp8QFI4E0E6F1Z9v",
+            .url = "git+https://github.com/Daniel1984/marketdata-relay-pub?ref=v0.2.1#1ee2e4df30b350913d87b2be8f603b409a47f659",
+            .hash = "marketdata_relay_pub-0.0.0-G7cQmjERAABWuuvBOjiaw8FFrNCkV50JnE7cPlRh9ZD3",
         },
         .marketdata_ws_client = .{
             .url = "git+https://github.com/Daniel1984/marketdata-wss-client?ref=v0.1.12#57eb53d385adfbffb12b75e41f03f99f052c95bc",

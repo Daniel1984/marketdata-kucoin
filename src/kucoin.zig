@@ -18,6 +18,7 @@ mutex: std.Thread.Mutex,
 client: ?ws.Client,
 stream: relay.Self,
 subscription_topics: ?std.StaticStringMap([]const u8) = null,
+last_data_ms: i64,
 
 pub fn init(allocator: std.mem.Allocator, stream: relay.Self) !Self {
     return Self{
@@ -30,6 +31,7 @@ pub fn init(allocator: std.mem.Allocator, stream: relay.Self) !Self {
         .client = null,
         .stream = stream,
         .subscription_topics = null,
+        .last_data_ms = std.time.milliTimestamp(),
     };
 }
 
@@ -217,6 +219,16 @@ pub fn consume(self: *Self) !void {
         // Handle incoming messages
         const ping_interval_ns = self.ping_interval * std.time.ns_per_ms;
 
+        // Data watchdog: if no market data received for 30s, the subscription
+        // silently dropped server-side. Force a full reconnect.
+        if (std.time.milliTimestamp() - self.last_data_ms > 60_000) {
+            std.log.warn("no market data for 30s, forcing reconnect", .{});
+            try self.reconnect();
+            self.last_data_ms = std.time.milliTimestamp();
+            ping_timer.reset();
+            continue;
+        }
+
         // Check if we need to send a ping
         if (ping_timer.read() >= ping_interval_ns) {
             var ping_data = [_]u8{};
@@ -269,10 +281,9 @@ pub fn consume(self: *Self) !void {
                                     };
                                     defer self.allocator.free(transformed_data);
 
-                                    std.debug.print("::: transformed_data :> {s}\n", .{transformed_data});
-                                    self.stream.publishMessage(transformed_data) catch |err| {
-                                        std.log.warn("failed publishing msg: {}", .{err});
-                                    };
+                                    // std.debug.print("::: transformed_data :> {s}\n", .{transformed_data});
+                                    self.stream.publishMessage(transformed_data);
+                                    self.last_data_ms = std.time.milliTimestamp();
                                     continue;
                                 }
 

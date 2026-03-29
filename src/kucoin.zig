@@ -18,6 +18,7 @@ mutex: std.Thread.Mutex,
 client: ?ws.Client,
 stream: relay.Self,
 subscription_topics: ?std.StaticStringMap([]const u8) = null,
+subscription_thread: ?std.Thread = null,
 last_data_ms: i64,
 
 pub fn init(allocator: std.mem.Allocator, stream: relay.Self) !Self {
@@ -36,6 +37,7 @@ pub fn init(allocator: std.mem.Allocator, stream: relay.Self) !Self {
 }
 
 pub fn deinit(self: *Self) void {
+    if (self.subscription_thread) |t| t.join();
     if (self.token) |token| {
         self.allocator.free(token);
         self.token = null;
@@ -139,24 +141,47 @@ pub fn subscribeTopics(self: *Self) !void {
         return error.NoSubscriptionTopics;
     }
 
+    if (self.subscription_thread) |t| {
+        t.join();
+        self.subscription_thread = null;
+    }
+
     const keys = self.subscription_topics.?.keys();
-    for (keys, 0..) |topic, i| {
+
+    // Send first subscription immediately so consume() can start
+    try self.sendSubscription(keys[0], 0);
+
+    // Remaining subscriptions sent in background with delays
+    if (keys.len > 1) {
+        self.subscription_thread = try std.Thread.spawn(.{}, subscribeRemaining, .{self});
+    }
+}
+
+fn sendSubscription(self: *Self, topic: []const u8, id: usize) !void {
+    const subscribe_msg = types.SubscribeMessage{
+        .id = id,
+        .type = "subscribe",
+        .topic = topic,
+        .response = true,
+    };
+
+    const subscribe_json = try std.fmt.allocPrint(self.allocator, "{f}", .{std.json.fmt(subscribe_msg, .{})});
+    defer self.allocator.free(subscribe_json);
+
+    self.mutex.lock();
+    defer self.mutex.unlock();
+    try self.client.?.write(subscribe_json);
+    std.log.info("subscribed: {s}", .{topic});
+}
+
+fn subscribeRemaining(self: *Self) void {
+    const keys = self.subscription_topics.?.keys();
+    for (keys[1..], 1..) |topic, i| {
         std.Thread.sleep(500 * std.time.ns_per_ms);
-
-        const subscribe_msg = types.SubscribeMessage{
-            .id = i,
-            .type = "subscribe",
-            .topic = topic,
-            .response = true,
+        self.sendSubscription(topic, i) catch |err| {
+            std.log.err("failed to subscribe {s}: {}", .{ topic, err });
+            return;
         };
-
-        const subscribe_json = try std.fmt.allocPrint(self.allocator, "{f}", .{std.json.fmt(subscribe_msg, .{})});
-        defer self.allocator.free(subscribe_json);
-
-        self.mutex.lock();
-        defer self.mutex.unlock();
-        std.log.info("subscription payload: {s}", .{subscribe_json});
-        try self.client.?.write(subscribe_json);
     }
 }
 
